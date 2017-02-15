@@ -1,0 +1,113 @@
+/***************************************
+High Performance Computing 
+Project 1: Warm-up in C with 'ghosts'
+David Duy Ngo
+
+Current Progress: 
+	1. Familiar with "image.h".
+	2. Wrote test program with the library.
+	3. Split Image with image_split
+	4. Writes each of the chunks to a PGM image.
+	5. Pads the chunks with “ghost” columns.
+TO DO:
+	2. Simulates Send/recv the “ghost” rows to/from the adjacent chunks.
+	5. Time Code
+	6. Optimize
+
+HOW TO EXECUTE:
+	./main <file_name> <thread_count>
+
+NOTES:
+2/7/17
+	Have been attempting to fix a segfault error when opening file of past 1024 size.
+	There seems to be a miscalculation with counting the pixels in the 1D array.
+
+1/24/17
+	Save the padded chunks to files. Use the following nomenclature:
+	<op>_<chunk number>_<p>.pgm
+	For example: op_2_16.pgm is 3rd chunk (chunks start from 0) when 16 chunks are created.
+****************************************/
+#include "image.h"
+#include <time.h>
+#include <sys/time.h>
+
+/*
+Notable Functions from image.h
+
+void read_image_template(char *name, int **image, int *im_width, int *im_height);
+void write_image_template(char *name, int *image, int im_width, int im_height);
+*/
+
+void image_split(int starting_index, int height, int width, int *image, int count){
+	int *image_chunk;
+	int tmp, i, j, src_ctr = 0;
+	int size = (height+2)*(width+2);
+	char index[4];
+	char name[100];
+
+	strcpy(name, "op_");
+	sprintf(index, "%d", starting_index);
+	strcat(name, index);
+	strcat(name, "_");
+	sprintf(index, "%d", count);
+	strcat(name, index);
+	strcat(name, ".pgm");
+
+	image_chunk = (int*)malloc(sizeof(int)*(size));
+	//printf("first block\n");
+	image_chunk[0] = image[(src_ctr+(starting_index*height)*width)+1];
+
+	for (i = 1; i < width+1; i++){
+		image_chunk[i] = image[src_ctr+(starting_index*height)*width];
+		src_ctr++;
+	}
+	image_chunk[width+1] = image[(src_ctr+(starting_index*height)*width)-1];
+	src_ctr = 0;
+	//printf("second block\n");
+
+	//main body
+	for(i = width+2; i < (size)-(width+1); i++){
+		image_chunk[i] = image[src_ctr+(starting_index*height)*width+1];
+		tmp = i;
+		//printf("%d, %d, %d\n", tmp+width, src_ctr+(starting_index*height)*width ,width*width);
+		for(j = i+1; j < tmp+width; j++){
+			image_chunk[j] = image[src_ctr+(starting_index*height)*width];
+			i++;
+			src_ctr++;
+		}
+		image_chunk[++i] = image[(src_ctr-1)+(starting_index*height)*width];
+	}
+	//printf("third block\n");
+	src_ctr = src_ctr - width;
+	for (i = (size)-(width+1)+1; i < (size); i++){
+		image_chunk[i] = image[src_ctr+(starting_index*height)*width];
+		src_ctr++;
+	}
+
+	write_image_template(name, image_chunk, width+2, height+2); 
+	free(image_chunk);
+	
+}
+
+//./main <file_name> <thread_count>
+int main(int argc, char** argv){
+	char *name = "Lenna_org_256.pgm";
+	int **image_buffer;
+	int im_width, im_height, thread_count = 4;
+	int i, j;
+
+	if (argc > 1){
+		name = argv[1];
+		thread_count = atoi(argv[2]);
+	}
+	
+	read_image_template(name, image_buffer, &im_width, &im_height);
+	clock_t start = clock();
+	for(i = 0; i < thread_count; i++)
+		image_split(i, im_height/thread_count, im_width, *image_buffer, thread_count);
+	clock_t end = clock();
+
+	printf("Time Elapsed: %f Microseconds\n", ((double)(end - start) / CLOCKS_PER_SEC)*1000000);
+
+	return 0;
+}
