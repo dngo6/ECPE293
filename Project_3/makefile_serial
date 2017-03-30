@@ -1,0 +1,12 @@
+CC = g++
+
+CFLAGS = -o 
+
+MAIN = serial.c
+
+EXECUTABLE = serial
+
+all: $(EXECUTABLE)
+
+$(EXECUTABLE): $(MAIN)
+	$(CC) $(CFLAGS) $(EXECUTABLE) $(MAIN) 

@@ -1,0 +1,13 @@
+CC = g++
+
+CFLAGS = -fopenmp -o
+
+MAIN = openMP_main.c
+
+EXECUTABLE = openMP
+
+all: $(EXECUTABLE)
+
+$(EXECUTABLE): $(MAIN)
+	$(CC) $(CFLAGS) $(EXECUTABLE) $(MAIN) 
+

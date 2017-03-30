@@ -1,0 +1,39 @@
+Serial:
+512x512: 286 milliseconds
+1024x1024: 1142 milliseconds
+2048x2048: 4434 milliseconds
+4096x4096: 18178 milliseconds
+5120x5120: 28764 milliseconds
+10240x10240: Segmentation Fault (Serial C Program)
+10240x10240: 150072 milliseconds (pthread C program 1 thread)
+
+Parallel 2 threads:
+512x512: 180 milliseconds
+1024x1024: 668 milliseconds
+2048x2048: 2574 milliseconds
+4096x4096: 9583 milliseconds
+5120x5120: 14373 milliseconds
+10240x10240: 113244
+
+Parallel 4 threads:
+512x512: 385 milliseconds
+1024x1024: 747 milliseconds
+2048x2048: 2585 milliseconds
+4096x4096: 9304 milliseconds
+5120x5120: 14562 milliseconds
+10240x10240: 90405
+Parallel 8 threads:
+512x512: 257 milliseconds
+1024x1024: 695 milliseconds
+2048x2048: 2494 milliseconds
+4096x4096: 9243 milliseconds
+5120x5120: 15204 milliseconds
+10240x10240: 92498 milliseconds
+
+Parallel 16 threads:
+512x512: 233 milliseconds
+1024x1024: 750 milliseconds
+2048x2048: 2521 milliseconds
+4096x4096: 9498 milliseconds
+5120x5120: 14525 milliseconds
+10240x10240: 151212 milliseconds

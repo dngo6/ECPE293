@@ -1,0 +1,12 @@
+CC = g++
+
+CFLAGS = -pthread -o
+
+MAIN = pthread_main.c
+
+EXECUTABLE = pthread
+
+all: $(EXECUTABLE)
+
+$(EXECUTABLE): $(MAIN)
+	$(CC) $(CFLAGS) $(EXECUTABLE) $(MAIN) 
