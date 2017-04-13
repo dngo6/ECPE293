@@ -24,22 +24,21 @@ g++ -std=c99 -lm -o main main.c
 #include <pthread.h>
 
 typedef struct {
-	float* image;
-	int width;
-	int height;
-} Image;
-
-typedef struct {
 	int thread_id;
 	int ker_w;
 	int ker_h;
-	Image image;
 } thread_data;
 
-int num_threads;
+//global variables
+int num_threads, width, height;
 float *kernel, *deriv, sigma;
-Image ref_image;
+float *ref_image;
 float *temp_horiz_image, *temp_vert_image;
+
+/*********
+Additional Variables for Project 3
+**********/
+float *magnitude, *phase;
 
 void swapFunc(float* a, float* b){
 	float temp = *a;
@@ -59,6 +58,7 @@ int boundaries(int i, int j, int offset_i, int offset_j, int width, int height, 
 
 	return 1;
 }
+
 
 void gaussian_kernal(float sigma, float** kernel, int* size) {
 	float a = round(2.5*sigma - 0.5);
@@ -124,43 +124,56 @@ void convolution(float* img, int width, int height, int start, int end, float* k
 	}
 }
 
-void calculate_magphase(Image horiz, Image vert, float* mag, float* phase){
-	int width = horiz.width, height = horiz.height, i, j;
+
+void calculate_magphase(float* horiz, float* vert, float* mag, float* phase, int start, int end){
+	int i, j;
 
 	for (i = 0; i < height; i++){
 		for (j = 0; j < width; j++){
-			mag[i*width + j] = sqrt(pow(vert.image[i*width +j], 2) + pow(horiz.image[i*width +j], 2));
-            		phase[i*width + j] = atan2(vert.image[i*width + j], horiz.image[i*width + j]);
+			mag[i*width + j] = sqrt(pow(vert[i*width +j], 2) + pow(horiz[i*width +j], 2));
+            		phase[i*width + j] = atan2(vert[i*width + j], horiz[i*width + j]);
 		}	
 	}
 
 }
 
-/*
-void* thread_func_vert(void* thread_args){
+void* thread_magphase(void* thread_args){
 	thread_data *data; 
 	data = (thread_data *) thread_args;
-	int start_index = data->thread_id*((ref_image.height)/num_threads);
-	int end_index = start_index+((ref_image.height)/num_threads);
+	int start_index = data->thread_id*((height)/num_threads);
+	int end_index = start_index+((height)/num_threads);
 
 	printf("Thread #%d | Start:%d | End:%d\n", data->thread_id, start_index, end_index);
 	
-	convolution(ref_image.image, ref_image.width, ref_image.height, start_index, end_index, kernel, data->ker_w, data->ker_h, &temp_vert_image.image);
-	convolution(temp_vert_image.image, ref_image.width, ref_image.height, start_index, end_index, deriv, data->ker_w, data->ker_h, &temp_vert_image.image);
+	calculate_magphase(temp_horiz_image, temp_vert_image, magnitude, phase, start_index, end_index);
 
 	pthread_exit(NULL);
 }
-*/
-void* thread_func_horiz(void* thread_args){
+
+void* thread_func_vert(void* thread_args){
 	thread_data *data; 
 	data = (thread_data *) thread_args;
-	int start_index = data->thread_id*((ref_image.height)/num_threads);
-	int end_index = start_index+((ref_image.height)/num_threads);
+	int start_index = data->thread_id*((height)/num_threads);
+	int end_index = start_index+((height)/num_threads);
 
 	printf("Thread #%d | Start:%d | End:%d\n", data->thread_id, start_index, end_index);
 	
-	convolution(ref_image.image, ref_image.width, ref_image.height, start_index, end_index, kernel, data->ker_w, data->ker_h, &temp_horiz_image);
-	convolution(temp_horiz_image, ref_image.width, ref_image.height, start_index, end_index, deriv, data->ker_w, data->ker_h, &temp_horiz_image);
+	convolution(ref_image, width, height, start_index, end_index, kernel, data->ker_w, data->ker_h, &temp_vert_image);
+	convolution(ref_image, width, height, start_index, end_index, deriv, data->ker_w, data->ker_h, &temp_vert_image);
+
+	pthread_exit(NULL);
+}
+
+void* thread_func_horiz(void* thread_args){
+	thread_data *data; 
+	data = (thread_data *) thread_args;
+	int start_index = data->thread_id*((height)/num_threads);
+	int end_index = start_index+((height)/num_threads);
+
+	printf("Thread #%d | Start:%d | End:%d\n", data->thread_id, start_index, end_index);
+	
+	convolution(ref_image, width, height, start_index, end_index, kernel, data->ker_w, data->ker_h, &temp_horiz_image);
+	convolution(ref_image, width, height, start_index, end_index, deriv, data->ker_w, data->ker_h, &temp_horiz_image);
 
 	pthread_exit(NULL);
 }
@@ -179,10 +192,6 @@ int main (int argc, char** argv){
 	thread_data *data;
 	struct timeval start, end;
 	
-	/*********
-	Additional Variables for Project 3
-	**********/
-	float *magnitude, *phase;
 	//Program 3 end
 
 	if (argc != 4){
@@ -207,22 +216,15 @@ int main (int argc, char** argv){
 	for (i = 0; i < size/2; i++)
 		swapFunc(&deriv[i], &deriv[size-i-1]);
 
-	read_image_template(file_name, &ref_image.image, &ref_image.width, &ref_image.height);
+	read_image_template(file_name, &ref_image, &width, &height);
 
-	//slight redundancy, but to set up the objects for hor and vert gradients
-	/*
-	temp_horiz_image.height = ref_image.height;
-	temp_horiz_image.width = ref_image.width;
-	temp_vert_image.height = ref_image.height;
-	temp_vert_image.width = ref_image.width;
-	*/
 	//allocate memory for magnitude and phase
-	temp_horiz_image = (float*) malloc(sizeof(float)*(ref_image.height*ref_image.width));
-	temp_vert_image = (float*) malloc(sizeof(float)*(ref_image.height*ref_image.width));
-	magnitude = (float*) malloc(sizeof(float)*(ref_image.width*ref_image.height));
-	phase = (float*) malloc(sizeof(float)*(ref_image.width*ref_image.height));
+	temp_horiz_image = (float*) malloc(sizeof(float)*(height*width));
+	temp_vert_image = (float*) malloc(sizeof(float)*(height*width));
+	magnitude = (float*) malloc(sizeof(float)*(width*height));
+	phase = (float*) malloc(sizeof(float)*(width*height));
 
-	printf("File Name: \"%s\"\nWidth: %d\nHeight %d\n", file_name, ref_image.width, ref_image.height);
+	printf("File Name: \"%s\"\nWidth: %d\nHeight %d\n", file_name, width, height);
 
 	/*************
 	Horizontal Convolution
@@ -248,7 +250,7 @@ int main (int argc, char** argv){
 	***************/
 	
 	printf("Done!\nVertical Convolve Processing...\n");	
-	/*
+	
 	for (i = 0; i < num_threads; i++){
 		data[i].thread_id = i;
 		data[i].ker_w = 1;
@@ -259,13 +261,22 @@ int main (int argc, char** argv){
 	
 	for (i = 0; i < num_threads; i++)
 		pthread_join(threads[i], NULL);
-	*/
-	//write_image_template<float>(magnitude_name, temp_horiz_image.image, ref_image.width, ref_image.height);
-	
-	//calculate_magphase(temp_horiz_image, temp_vert_image, magnitude, phase);
 
-	write_image_template<float>(magnitude_name, temp_horiz_image, ref_image.width, ref_image.height);
-	//write_image_template<float>(phase_name, phase, ref_image.width, ref_image.height);
+	/************
+	Magphase stage
+	**************/	
+
+	for (i = 0; i < num_threads; i++){
+		data[i].thread_id = i;
+		pthread_create(&threads[i], NULL, thread_magphase, (void *) &data[i]);	
+	}
+	
+	
+	for (i = 0; i < num_threads; i++)
+		pthread_join(threads[i], NULL);
+
+	write_image_template<float>(magnitude_name, magnitude, width, height);
+	write_image_template<float>(phase_name, phase, width, height);
 	
 	gettimeofday(&end, NULL);
 	printf("Done!\nTotal Time to run: %ld milliseconds\n", ((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec))/1000);
@@ -278,7 +289,7 @@ int main (int argc, char** argv){
 	free(phase);
 	free(temp_horiz_image);
 	free(temp_vert_image);
-	free(ref_image.image);
+	free(ref_image);
 	free(threads);
 	free(data);
 
