@@ -51,9 +51,9 @@ int boundaries(int i, int j, int offset_i, int offset_j, int width, int height, 
 		return 0;
 	if (i+offset_i < 0)
 		return 0;
-	if (j+offset_j > width)
+	if (j+offset_j >= width)
 		return 0;
-	if (i+offset_i > height)
+	if (i+offset_i >= height)
 		return 0;
 
 	return 1;
@@ -265,7 +265,7 @@ int main (int argc, char** argv){
 	/************
 	Magphase stage
 	**************/	
-
+	printf("Done!\nCalculating Magphase...\n");
 	for (i = 0; i < num_threads; i++){
 		data[i].thread_id = i;
 		pthread_create(&threads[i], NULL, thread_magphase, (void *) &data[i]);	
